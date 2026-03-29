@@ -37,8 +37,17 @@ namespace QdcmLoader
                     result.ErrorMessage = "file not exists: " + val;
                 }
             });
-            var rootCommand = new RootCommand("QDCM loader for Gaokun") { presetoption, resetoption, igcoption, lut3doption };
-            rootCommand.SetHandler(HandleParsedCommand, presetoption, resetoption, igcoption, lut3doption);
+            var factoryoption = new Option<string?>("--factory", "Load factory calibration from external binary file") { ArgumentHelpName = "file.bin" };
+            factoryoption.AddValidator(result =>
+            {
+                var val = result.GetValueForOption(factoryoption);
+                if (val != null && !File.Exists(val))
+                {
+                    result.ErrorMessage = "file not exists: " + val;
+                }
+            });
+            var rootCommand = new RootCommand("QDCM loader for Gaokun") { presetoption, resetoption, igcoption, lut3doption, factoryoption };
+            rootCommand.SetHandler(HandleParsedCommand, presetoption, resetoption, igcoption, lut3doption, factoryoption);
             rootCommand.AddValidator(result =>
             {
                 if (result.Children.Count == 0)
@@ -54,6 +63,10 @@ namespace QdcmLoader
                     else if (result.Children.Any(x => x.Symbol == presetoption))
                     {
                         result.ErrorMessage = "cannot use other option with --preset";
+                    }
+                    else if (result.Children.Any(x => x.Symbol == factoryoption))
+                    {
+                        result.ErrorMessage = "cannot use other option with --factory";
                     }
                 }
             });
@@ -78,7 +91,7 @@ namespace QdcmLoader
             return parser.Invoke(args);
         }
 
-        static Task<int> HandleParsedCommand(Preset? preset, bool reset, string? igcfile, string? lut3dfile)
+        static Task<int> HandleParsedCommand(Preset? preset, bool reset, string? igcfile, string? lut3dfile, string? factoryfile)
         {
             //Console.WriteLine("igc: {0}", igcfile);
             //Console.WriteLine("pcc: {0}", pcc);
@@ -131,6 +144,17 @@ namespace QdcmLoader
                 return Task.FromResult(0);
             }
 
+            if (factoryfile != null)
+            {
+                lut3d = LoadFactoryCalibrationFromFile(factoryfile);
+                if (lut3d == null)
+                {
+                    Console.Error.WriteLine("Failed to load factory calibration from file");
+                    return Task.FromResult(1);
+                }
+                plat.SetLookupTable3D(disp, lut3d);
+                return Task.FromResult(0);
+            }
 
             //float[]? pccarr = null;
             //LookupTable3x1D? vcgt = null;
@@ -219,31 +243,14 @@ namespace QdcmLoader
             return Task.FromResult(0);
         }
 
-        private static unsafe LookupTable3D? LoadFactoryCalibration(Preset preset)
+        private static LookupTable3D? ParseFactoryTable(Span<byte> buf)
         {
-            const uint sigACPI = 0x41435049;
-            const uint sigDLUT = 0x54554c44;
-
-            var len = GetSystemFirmwareTable(sigACPI, sigDLUT, null, 0);
-            var buf = new byte[len];
-            fixed (byte* ptr = buf)
-            {
-                GetSystemFirmwareTable(sigACPI, sigDLUT, ptr, len);
-            }
-
             const int size = 0x6400;
-            var offset = preset switch
-            {
-                Preset.sRGB => 0x6444,
-                Preset.DisplayP3 => 0x44,
-                _ => throw new ArgumentOutOfRangeException(nameof(preset))
-            };
             Span<byte> table;
 
             try
             {
-
-                table = buf.AsSpan(offset, size);
+                table = buf.Slice(0, size);
             }
             catch (ArgumentOutOfRangeException)
             {
@@ -273,9 +280,47 @@ namespace QdcmLoader
                     }
 
             return result;
+        }
+
+        private static unsafe LookupTable3D? LoadFactoryCalibration(Preset preset)
+        {
+            const uint sigACPI = 0x41435049;
+            const uint sigDLUT = 0x54554c44;
+
+            var len = GetSystemFirmwareTable(sigACPI, sigDLUT, null, 0);
+            var buf = new byte[len];
+            fixed (byte* ptr = buf)
+            {
+                GetSystemFirmwareTable(sigACPI, sigDLUT, ptr, len);
+            }
+
+            var offset = preset switch
+            {
+                Preset.sRGB      => 0x6444,
+                Preset.DisplayP3 => 0x44,
+                _ => throw new ArgumentOutOfRangeException(nameof(preset))
+            };
+
+            return ParseFactoryTable(buf.AsSpan(offset));
 
             [DllImport("kernel32")]
             static extern uint GetSystemFirmwareTable(uint FirmwareTableProviderSignature, uint FirmwareTableID, void* pFirmwareTableBuffer, uint BufferSize);
+        }
+
+        private static LookupTable3D? LoadFactoryCalibrationFromFile(string path)
+        {
+            byte[] buf;
+            try
+            {
+                buf = File.ReadAllBytes(path);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed to read {path}: {ex.Message}");
+                return null;
+            }
+
+            return ParseFactoryTable(buf.AsSpan());
         }
     }
 }

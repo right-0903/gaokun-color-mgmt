@@ -141,6 +141,13 @@ namespace QdcmLoader
                     return Task.FromResult(1);
                 }
                 plat.SetLookupTable3D(disp, lut3d);
+                var filename = $"{preset.Value}.cube";
+                using (var outputStream = File.Open(filename, FileMode.Create, FileAccess.Write))
+                {
+                    var writer = new CubeWriter(outputStream);
+                    writer.Write(lut3d);
+                    Console.WriteLine($"cube file generated: {filename}");
+                }
                 return Task.FromResult(0);
             }
 
@@ -153,6 +160,14 @@ namespace QdcmLoader
                     return Task.FromResult(1);
                 }
                 plat.SetLookupTable3D(disp, lut3d);
+
+                var filename = $"{Path.GetFileNameWithoutExtension(factoryfile)}.cube";
+                using (var outputStream = File.Open(filename, FileMode.Create, FileAccess.Write))
+                {
+                    var writer = new CubeWriter(outputStream);
+                    writer.Write(lut3d);
+                    Console.WriteLine($"cube file generated: {filename}");
+                }
                 return Task.FromResult(0);
             }
 

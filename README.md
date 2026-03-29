@@ -25,10 +25,12 @@ Options:
   --reset                    Reset display color
   --igc <file.cube>          Load custom input shaper (3x1D LUT applied before 3D LUT)
   --3dlut <file.cube>        Load custom 3D LUT
+  --factory <file.bin>       Load factory calibration from external binary file
   -?, -h, --help             Show help and usage information
 
 Remarks:
   Both IRIDAS and Resolve .cube format are supported.
+  A converted .cube file will be generated if a factory calibration is specified.
 ```
 
 ```console

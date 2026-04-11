@@ -6,7 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-	  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
 	  <AssemblyName>qdcm-loader</AssemblyName>
 	  <PublishAot>true</PublishAot>
   </PropertyGroup>

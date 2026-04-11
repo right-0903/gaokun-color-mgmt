@@ -39,7 +39,8 @@ PS C:\path\to\goodies>.\Set-ChargeLimit.ps1 -PercentageLimit 80
 
 ## Notes
 
-Both kbd-detach and qdcm-loader depend on amd64 DLLs and are built targeting amd64/arm64ec.
+kbd-detach depends on amd64 DLLs and is built targeting amd64/arm64ec.
 
+qdcm-loader can depend on amd64/arm64ec [DLL](https://github.com/WOA-Project/Qualcomm-Reference-Drivers/blob/master/8380_CRD/200.0.57.0/qdcmlib8380.cab), so build it to target amd64/arm64ec respectively. The DLL must be renamed to `qdcmlib.dll` and placed to the same directory with the executable.
 
 No GUI yet because no modern GUI framework supports arm64ec.
